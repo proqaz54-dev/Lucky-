@@ -46,11 +46,21 @@ main {
 
 canvas {
   width: 100%;
-  height: auto;
+  height: 640px;
+  max-height: 80vh;
   border-radius: 20px;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   box-shadow: var(--shadow);
   touch-action: manipulation;
+}
+
+.error-note {
+  color: #fee2e2;
+  background: #7f1d1d;
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-top: 16px;
+  text-align: center;
 }
 
 .hud {
