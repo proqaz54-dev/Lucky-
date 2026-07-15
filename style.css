@@ -1,0 +1,136 @@
+:root {
+  --bg: #0f172a;
+  --panel: rgba(15, 23, 42, 0.95);
+  --text: #f8fafc;
+  --accent: #f59e0b;
+  --danger: #ef4444;
+  --shadow: 0 18px 45px rgba(15, 23, 42, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at top, #334155 0%, #0f172a 60%);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-shell {
+  width: min(420px, calc(100vw - 16px));
+  padding: 16px;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  margin: 0;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+main {
+  margin-top: 16px;
+  position: relative;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  box-shadow: var(--shadow);
+  touch-action: manipulation;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.banner-ad {
+  margin-top: 12px;
+  padding: 14px 16px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  color: #cbd5e1;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.hidden {
+  display: none;
+}
+
+.panel {
+  width: 100%;
+  max-width: 320px;
+  padding: 24px;
+  border-radius: 24px;
+  background: var(--panel);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+}
+
+.panel p {
+  margin: 0 0 18px;
+  font-size: 1rem;
+}
+
+button {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+#restartBtn {
+  background: #38bdf8;
+  margin-bottom: 10px;
+}
+
+#watchAdBtn {
+  background: #f59e0b;
+}
+
+footer {
+  margin-top: 18px;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  text-align: center;
+}
