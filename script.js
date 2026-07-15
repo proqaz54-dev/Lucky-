@@ -1,5 +1,4 @@
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 const coinsEl = document.getElementById('coins');
 const gameOverPanel = document.getElementById('gameOverPanel');
@@ -11,193 +10,223 @@ const bannerAd = document.getElementById('bannerAd');
 const GAME_WIDTH = canvas.width;
 const GAME_HEIGHT = canvas.height;
 
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(GAME_WIDTH, GAME_HEIGHT);
+renderer.setClearColor(0x08101f, 1);
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(45, GAME_WIDTH / GAME_HEIGHT, 0.1, 100);
+camera.position.set(0, 5.4, 9.5);
+camera.lookAt(0, 1.2, 0);
+
+const light = new THREE.DirectionalLight(0xffffff, 1.1);
+light.position.set(5, 10, 5);
+scene.add(light);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+scene.add(ambientLight);
+
+const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x1f2937 });
+const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x334155 });
+const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+const obstacleMaterial = new THREE.MeshStandardMaterial({ color: 0xef4444 });
+const coinMaterial = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xffe68a });
+
+const lanes = [-2.4, 0, 2.4];
+
 const player = {
-  x: GAME_WIDTH / 2 - 22,
-  y: GAME_HEIGHT - 100,
-  width: 44,
-  height: 44,
-  vy: 0,
-  gravity: 0.9,
-  jumpPower: -16,
-  grounded: false,
-  color: '#fbbf24',
+  mesh: null,
+  lane: 1,
+  targetLane: 1,
+  speed: 0.12,
+  score: 0,
+  coins: 0,
+  alive: false,
 };
 
-let platforms = [];
-let coins = [];
-let score = 0;
-let coinCount = 0;
+const obstacles = [];
+const coins = [];
+const roadSegments = [];
+let distanceTraveled = 0;
 let gameRunning = false;
-let gameOver = false;
 
-function resetGame() {
-  player.y = GAME_HEIGHT - 100;
-  player.vy = 0;
-  platforms = [];
-  coins = [];
-  score = 0;
-  coinCount = 0;
-  gameRunning = true;
-  gameOver = false;
-  gameOverPanel.classList.add('hidden');
-  createPlatforms();
-  updateHUD();
-  loop();
-}
+function createScene() {
+  const road = new THREE.Mesh(new THREE.BoxGeometry(8, 0.1, 160), roadMaterial);
+  road.position.set(0, -0.05, -60);
+  scene.add(road);
 
-function createPlatforms() {
-  platforms = [
-    { x: 0, y: GAME_HEIGHT - 20, width: GAME_WIDTH, height: 20 },
-  ];
-  for (let i = 0; i < 5; i++) {
-    createPlatform(i);
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.6, 160), wallMaterial);
+  leftWall.position.set(-4.1, 1.15, -60);
+  scene.add(leftWall);
+
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.6, 160), wallMaterial);
+  rightWall.position.set(4.1, 1.15, -60);
+  scene.add(rightWall);
+
+  const gridMaterial = new THREE.LineBasicMaterial({ color: 0x334155 });
+  for (let z = -8; z > -152; z -= 4) {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.02, 0.05), gridMaterial);
+    line.position.set(0, 0.01, z);
+    scene.add(line);
   }
 }
 
-function createPlatform(index) {
-  const width = 120;
-  const height = 16;
-  const x = Math.random() * (GAME_WIDTH - width);
-  const y = GAME_HEIGHT - 120 - index * 120;
-  platforms.push({ x, y, width, height });
-  if (Math.random() > 0.5) {
-    coins.push({ x: x + width / 2 - 10, y: y - 28, size: 20, collected: false });
-  }
+function createPlayer() {
+  const geometry = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+  player.mesh = new THREE.Mesh(geometry, playerMaterial);
+  player.mesh.position.set(lanes[player.lane], 0.7, 2);
+  scene.add(player.mesh);
+}
+
+function spawnObstacle(z) {
+  const lane = Math.floor(Math.random() * lanes.length);
+  const obstacle = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), obstacleMaterial);
+  obstacle.position.set(lanes[lane], 0.65, z);
+  obstacle.userData = { lane, type: 'obstacle' };
+  scene.add(obstacle);
+  obstacles.push(obstacle);
+}
+
+function spawnCoin(z) {
+  const lane = Math.floor(Math.random() * lanes.length);
+  const coin = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.14, 16, 24), coinMaterial);
+  coin.position.set(lanes[lane], 1.2, z);
+  coin.rotation.x = Math.PI / 2;
+  coin.userData = { lane, collected: false, type: 'coin' };
+  scene.add(coin);
+  coins.push(coin);
+}
+
+function clearScene() {
+  obstacles.forEach(item => scene.remove(item));
+  coins.forEach(item => scene.remove(item));
+  obstacles.length = 0;
+  coins.length = 0;
 }
 
 function updateHUD() {
-  scoreEl.textContent = score;
-  coinsEl.textContent = coinCount;
+  scoreEl.textContent = Math.floor(player.score);
+  coinsEl.textContent = player.coins;
 }
 
-function drawRoundedRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.fill();
-}
-
-function draw() {
-  ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-  ctx.fillStyle = '#0f172a';
-  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-  ctx.fillStyle = '#0369a1';
-  drawRoundedRect(player.x, player.y, player.width, player.height, 10);
-
-  ctx.fillStyle = '#334155';
-  platforms.forEach(platform => drawRoundedRect(platform.x, platform.y, platform.width, platform.height, 10));
-
-  coins.forEach(coin => {
-    if (!coin.collected) {
-      ctx.fillStyle = '#fde047';
-      ctx.beginPath();
-      ctx.arc(coin.x + coin.size / 2, coin.y + coin.size / 2, coin.size / 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
-
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = '18px system-ui';
-  ctx.fillText('Lucky Jump', 16, 32);
-}
-
-function update() {
-  player.vy += player.gravity;
-  player.y += player.vy;
-
-  platforms.forEach(platform => {
-    if (
-      player.x + player.width > platform.x &&
-      player.x < platform.x + platform.width &&
-      player.y + player.height > platform.y &&
-      player.y + player.height < platform.y + platform.height + 18 &&
-      player.vy > 0
-    ) {
-      player.y = platform.y - player.height;
-      player.vy = 0;
-      player.grounded = true;
-    }
-  });
-
-  if (player.y > GAME_HEIGHT) {
-    endGame();
-    return;
+function resetGame() {
+  player.lane = 1;
+  player.targetLane = 1;
+  player.score = 0;
+  player.coins = 0;
+  distanceTraveled = 0;
+  gameRunning = true;
+  gameOverPanel.classList.add('hidden');
+  clearScene();
+  createPlayer();
+  for (let i = 0; i < 10; i += 2) {
+    spawnObstacle(-20 - i * 8);
+    spawnCoin(-24 - i * 8);
   }
-
-  coins.forEach(coin => {
-    if (!coin.collected &&
-      player.x < coin.x + coin.size &&
-      player.x + player.width > coin.x &&
-      player.y < coin.y + coin.size &&
-      player.y + player.height > coin.y
-    ) {
-      coin.collected = true;
-      coinCount += 1;
-      score += 10;
-      updateHUD();
-    }
-  });
-
-  score += 0.05;
   updateHUD();
+  animate();
 }
 
-function loop() {
+function handleInput(event) {
   if (!gameRunning) return;
-  update();
-  draw();
-  requestAnimationFrame(loop);
+  let clientX = event.clientX;
+  if (event.touches && event.touches[0]) clientX = event.touches[0].clientX;
+  const rect = canvas.getBoundingClientRect();
+  const normalizedX = (clientX - rect.left) / rect.width;
+
+  if (normalizedX < 0.4) {
+    player.targetLane = Math.max(0, player.targetLane - 1);
+  } else if (normalizedX > 0.6) {
+    player.targetLane = Math.min(lanes.length - 1, player.targetLane + 1);
+  }
 }
+
+window.addEventListener('keydown', event => {
+  if (event.key === 'ArrowLeft') {
+    player.targetLane = Math.max(0, player.targetLane - 1);
+  }
+  if (event.key === 'ArrowRight') {
+    player.targetLane = Math.min(lanes.length - 1, player.targetLane + 1);
+  }
+  if (event.key === 'Enter' && !gameRunning) {
+    resetGame();
+  }
+});
+
+canvas.addEventListener('click', handleInput);
+canvas.addEventListener('touchstart', event => {
+  event.preventDefault();
+  handleInput(event);
+});
 
 function endGame() {
   gameRunning = false;
-  gameOver = true;
-  finalScore.textContent = Math.floor(score);
+  finalScore.textContent = Math.floor(player.score);
   gameOverPanel.classList.remove('hidden');
 }
 
-function jump() {
-  if (!gameRunning) {
-    resetGame();
-    return;
-  }
-  if (player.grounded || player.y + player.height >= GAME_HEIGHT - 20) {
-    player.vy = player.jumpPower;
-    player.grounded = false;
-  }
+function animate() {
+  if (!gameRunning) return;
+
+  player.mesh.position.x += (lanes[player.targetLane] - player.mesh.position.x) * 0.18;
+  player.mesh.position.y += (0.7 - player.mesh.position.y) * 0.1;
+
+  const speed = player.speed + Math.min(0.08, distanceTraveled * 0.0003);
+  distanceTraveled += speed;
+  player.score = distanceTraveled * 2 + player.coins * 15;
+
+  obstacles.forEach((item, index) => {
+    item.position.z += speed;
+    if (item.position.z > 6) {
+      scene.remove(item);
+      obstacles.splice(index, 1);
+      spawnObstacle(-120);
+    }
+    if (Math.abs(item.position.z - 2) < 0.9 && Math.abs(item.position.x - player.mesh.position.x) < 0.9) {
+      endGame();
+    }
+  });
+
+  coins.forEach((item, index) => {
+    item.position.z += speed;
+    item.rotation.y += 0.16;
+    if (item.position.z > 6) {
+      scene.remove(item);
+      coins.splice(index, 1);
+      spawnCoin(-120);
+      return;
+    }
+    if (!item.userData.collected && Math.abs(item.position.z - 2) < 1 && Math.abs(item.position.x - player.mesh.position.x) < 0.9) {
+      item.userData.collected = true;
+      player.coins += 1;
+      player.score += 40;
+      scene.remove(item);
+      coins.splice(index, 1);
+      spawnCoin(-120);
+    }
+  });
+
+  camera.position.x += (player.mesh.position.x - camera.position.x) * 0.08;
+  camera.lookAt(player.mesh.position.x, 1.2, player.mesh.position.z - 6);
+
+  updateHUD();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
 }
 
-canvas.addEventListener('click', jump);
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  jump();
-});
-
 restartBtn.addEventListener('click', resetGame);
-
 watchAdBtn.addEventListener('click', () => {
   watchAdBtn.textContent = 'Почекай...';
   watchAdBtn.disabled = true;
   setTimeout(() => {
-    // Тут майбутня інтеграція відеореклами.
-    // Замініть setTimeout на виклик рекламного SDK, наприклад AdMob / Unity Ads.
-    score += 20;
+    player.score += 30;
     gameOverPanel.classList.add('hidden');
     gameRunning = true;
-    player.y = GAME_HEIGHT - 100;
-    player.vy = 0;
+    animate();
     watchAdBtn.textContent = 'Подивитися рекламу і продовжити';
     watchAdBtn.disabled = false;
-    loop();
   }, 1500);
 });
 
+createScene();
 resetGame();

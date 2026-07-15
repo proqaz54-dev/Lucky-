@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Lucky Jump</title>
+  <title>Lucky Run 3D</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-shell">
     <header>
-      <h1>Lucky Jump</h1>
-      <p class="subtitle">Торкнись, щоб стрибнути. Збирай монети і дивись рекламу за продовження.</p>
+      <h1>Lucky Run 3D</h1>
+      <p class="subtitle">Проведи фігуру по треку, міняй смуги та збирай монети.</p>
     </header>
 
     <main>
       <canvas id="gameCanvas" width="360" height="640"></canvas>
       <div class="hud">
-        <div>Счет: <span id="score">0</span></div>
+        <div>Рахунок: <span id="score">0</span></div>
         <div>Монети: <span id="coins">0</span></div>
       </div>
       <div id="bannerAd" class="banner-ad">Банерна реклама</div>
@@ -25,17 +25,18 @@
     <div class="overlay hidden" id="gameOverPanel">
       <div class="panel">
         <h2>Гра закінчена</h2>
-        <p>Набрано: <span id="finalScore">0</span></p>
+        <p>Отримано: <span id="finalScore">0</span></p>
         <button id="restartBtn">Грати ще</button>
         <button id="watchAdBtn">Подивитися рекламу і продовжити</button>
       </div>
     </div>
 
     <footer>
-      <p>Відкритий прототип. Замініть банер і відео на свої рекламні SDK.</p>
+      <p>Прототип 3D-платформи. Заміни місця для реклами на реальні SDK.</p>
     </footer>
   </div>
 
+  <script src="https://unpkg.com/three@0.154.0/build/three.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
